@@ -15,6 +15,9 @@ spec:
       - name: host-logs
         hostPath:
           path: /var/log/
+      - name: docker-logs
+        hostPath:
+          path: /var/lib/docker
       containers:
       - image: eu.gcr.io/peopledata-product-team/fluentd:{{ENV.GO_PIPELINE_COUNTER}}
         name: fluentd
@@ -22,6 +25,9 @@ spec:
         volumeMounts:
         - name: host-logs
           mountPath: /mnt/log/
+          readOnly: true
+        - name: docker-logs
+          mountPath: /var/lib/docker/
           readOnly: true
         env:
         - name: SUMO_COLLECTOR_ID
