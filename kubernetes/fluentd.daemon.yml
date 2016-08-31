@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  labels:
+    app: fluentd
+    version: v1
+spec:
+  template:
+    metadata:
+      labels:
+        name: fluentd
+    spec:
+      volumes:
+      - name: host-logs
+        hostPath:
+          path: /var/log/
+      containers:
+      - image: eu.gcr.io/peopledata-product-team/fluentd:{{ENV.GO_PIPELINE_COUNTER}}
+        name: fluentd
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: host-logs
+          mountPath: /mnt/log/
+          readOnly: true
+        env:
+        - name: SUMO_COLLECTOR_ID
+          valueFrom:
+            secretKeyRef:
+              name: sumologic-credentials
+              key: collector-id
