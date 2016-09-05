@@ -4,7 +4,7 @@ require 'yajl'
 
 class SumologicConnection
   def initialize(endpoint, collector_id)
-    @endpoint_uri = URI.join(endpoint, collector_id)
+    @endpoint_uri = URI.join(endpoint.chop, collector_id.chop)
   end
 
   def publish(raw_data)
