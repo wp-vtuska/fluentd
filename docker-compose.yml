@@ -3,6 +3,8 @@ services:
   fluentd:
     image: eu.gcr.io/peopledata-product-team/fluentd
     volumes:
-      - /var/log:/mnt/log
+      - /var/log:/mnt/log:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - ./plugins:/fluentd/plugins
     environment:
       - SUMO_COLLECTOR_ID
