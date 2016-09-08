@@ -67,7 +67,7 @@ class Sumologic < Fluent::Output
         'tag' => tag,
         'time' => time
       }.merge(record)
-      @sumo_conn.publish record
+      @sumo_conn.publish data
     end
   end
 end
