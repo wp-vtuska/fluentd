@@ -53,6 +53,12 @@ class Sumologic < Fluent::Output
     super
   end
 
+  def format(tag, time, record)
+    [tag, time, record].to_json + "\n"
+    ## Alternatively, use msgpack to serialize the object.
+    # [tag, time, record].to_msgpack
+  end
+
   # This method is called when an event reaches Fluentd.
   # 'es' is a Fluent::EventStream object that includes multiple events.
   # You can use 'es.each {|time,record| ... }' to retrieve events.
