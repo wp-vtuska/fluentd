@@ -1,4 +1,4 @@
-FROM fluent/fluentd:latest-onbuild
+FROM fluent/fluentd:latest
 WORKDIR /home/fluent
 ENV PATH /home/fluent/.gem/ruby/2.3.0/bin:$PATH
 
@@ -12,6 +12,12 @@ RUN apk --no-cache --update add sudo build-base ruby-dev libffi-dev && \
 RUN mkdir -p /mnt/pos
 EXPOSE 24284
 
-RUN mkdir -p /fluentd/conf.d
+RUN mkdir -p /fluentd/conf.d && \
+    mkdir -p /fluentd/etc && \
+    mkdir -p /fluentd/plugins
+
 COPY ./conf.d/* /fluentd/conf.d/
+COPY ./etc/* /fluentd/etc/
+COPY ./plugins/* /fluentd/plugins/
+
 CMD exec fluentd -c /fluentd/etc/$FLUENTD_CONF -p /fluentd/plugins $FLUENTD_OPT
