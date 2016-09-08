@@ -1,0 +1,11 @@
+<match **>
+  @type stdout
+</match>
+
+# Keep a smaller buffer here since these logs are less important than the user's
+# container logs.
+# <match **>
+#  type sumologic
+#  endpoint https://endpoint1.collection.us2.sumologic.com/receiver/v1/http/
+#  collector_id "#{ENV['SUMO_COLLECTOR_ID']}"
+# </match>

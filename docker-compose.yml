@@ -6,7 +6,7 @@ services:
       - /var/log:/mnt/log:ro
       - /var/lib/docker:/var/lib/docker:ro
       - ./plugins:/fluentd/plugins
-      - ./etc:/fluentd/etc
+      - ./conf.d:/fluentd/conf.d
     environment:
       SUMO_COLLECTOR_ID:
       FLUENTD_OPT: '-vv'
