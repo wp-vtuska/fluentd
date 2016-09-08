@@ -12,6 +12,8 @@ spec:
         name: fluentd
     spec:
       volumes:
+      - name: pos-files 
+        emptyDir: {}
       - name: host-logs
         hostPath:
           path: /var/log/
@@ -29,6 +31,8 @@ spec:
         - name: docker-logs
           mountPath: /var/lib/docker/
           readOnly: true
+        - name: pos-files 
+          mountPath: /mnt/pos/ 
         env:
         - name: SUMO_COLLECTOR_ID
           valueFrom:
