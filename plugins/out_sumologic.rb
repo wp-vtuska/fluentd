@@ -53,12 +53,6 @@ class Sumologic < Fluent::Output
     super
   end
 
-  def format(tag, time, record)
-    [tag, time, record].to_json + "\n"
-    ## Alternatively, use msgpack to serialize the object.
-    # [tag, time, record].to_msgpack
-  end
-
   # This method is called when an event reaches Fluentd.
   # 'es' is a Fluent::EventStream object that includes multiple events.
   # You can use 'es.each {|time,record| ... }' to retrieve events.
@@ -68,8 +62,12 @@ class Sumologic < Fluent::Output
   # NOTE! This method is called by Fluentd's main thread so you should not write slow routine here. It causes Fluentd's performance degression.
   def emit(tag, es, chain)
     chain.next
-    es.each do |time,record|
-       @sumo_conn.publish record
+    es.each do |time, record|
+      data = {
+        'tag' => tag,
+        'time' => time
+      }.merge(record)
+      @sumo_conn.publish record
     end
   end
 end
