@@ -12,4 +12,5 @@ RUN apk --no-cache --update add sudo build-base ruby-dev libffi-dev && \
 RUN mkdir -p /mnt/pos
 EXPOSE 24284
 
+COPY ./etc/* /fluentd/etc/
 CMD exec fluentd -c /fluentd/etc/$FLUENTD_CONF -p /fluentd/plugins $FLUENTD_OPT
