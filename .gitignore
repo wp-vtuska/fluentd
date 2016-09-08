@@ -1,1 +1,3 @@
-.tag*
+data/
+password.txt
+*.swp
