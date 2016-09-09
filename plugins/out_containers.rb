@@ -31,7 +31,9 @@ module Fluent
           'replica_set' => replica_set
         }.merge(record)
         record['log'].strip!
-        if not record['log'] == '' then
+        record['message'] = record.delete('log')
+
+        if not record['message'] == '' then
           # We only care about non-empty logs
           router.emit(tag, time, data)
         end
