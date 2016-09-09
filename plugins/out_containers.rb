@@ -22,6 +22,7 @@ module Fluent
       namespace = parts[1]
       container_name = parts[2].split('-').first
       replica_set = pod.split('-')[0..-2].join('-')
+      tag = "kubernetes.#{tag.split('.')[4].split('-')[0..-2].join('-')}"
 
       es.each do |time, record|
         data = {
