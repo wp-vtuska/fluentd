@@ -69,8 +69,9 @@ class Sumologic < Fluent::Output
       }.merge(record)
       begin
         @sumo_conn.publish data
-      rescue
+      rescue StandardError => e
         $stderr.puts "Failed to write to Sumo!"
+        $stderr.puts e
         $stderr.puts data
       end
     end
