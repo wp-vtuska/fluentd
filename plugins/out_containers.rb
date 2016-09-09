@@ -13,7 +13,7 @@ module Fluent
       $stdout.puts tag
       #tag = kubernetes.${tag_suffix[4].split('-')[0..-2].join('-')}
       es.each do |time, record|
-        record.log = record.log.strip
+        record.log = record['log'].strip
         Engine.emit(tag, time, record)
       end
 
