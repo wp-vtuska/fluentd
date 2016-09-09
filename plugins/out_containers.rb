@@ -30,11 +30,11 @@ module Fluent
           'container_name' => container_name,
           'replica_set' => replica_set
         }.merge(record)
-        $stdout.puts data
-        #if not record['log'] == '' then
+        record['log'].strip!
+        if not record['log'] == '' then
           # We only care about non-empty logs
           router.emit(tag, time, data)
-        #end
+        end
       end
 
       chain.next
