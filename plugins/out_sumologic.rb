@@ -67,7 +67,12 @@ class Sumologic < Fluent::Output
         'tag' => tag,
         'time' => time
       }.merge(record)
-      @sumo_conn.publish data
+      begin
+        @sumo_conn.publish data
+      rescue
+        $stderr.puts "Failed to write to Sumo!"
+        $stderr.puts data
+      end
     end
   end
 end
