@@ -20,12 +20,11 @@ class SumologicConnection
   end
 
   def http
-    unless @http
-      @http = Net::HTTP.new(@endpoint_uri.host, @endpoint_uri.port)
-      @http.use_ssl = true
-      @http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    end
-    @http
+    # Rubys HTTP is not thread safe, so we need a new instance for each request
+    client = Net::HTTP.new(@endpoint_uri.host, @endpoint_uri.port)
+    client.use_ssl = true
+    client.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    client
   end
 end
 
