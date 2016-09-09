@@ -24,16 +24,16 @@ module Fluent
       replica_set = pod.split('-')[0..-2].join('-')
 
       es.each do |time, record|
-        record['log'] = record['log'].strip
         data = {
           'namespace' => namespace,
           'container_name' => container_name,
           'replica_set' => replica_set
         }.merge(record)
-        if not record['log'] == '' then
+        $stdout.puts data
+        #if not record['log'] == '' then
           # We only care about non-empty logs
           router.emit(tag, time, data)
-        end
+        #end
       end
 
       chain.next
