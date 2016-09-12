@@ -20,7 +20,7 @@ module Fluent
       # gives you: ["containers.mnt.log.containers.rabbitmq-2862264727-393n0", "td-integration", "master-7c9d336c240d2238c8030c06310a2a0579d69d906f73ff06731373b1f820b99b.log"]
       pod = parts[0].split('.').last
       namespace = parts[1]
-      container_name = parts[0].split('-')[0..-2].join('-') 
+      container_name = parts[2].split('-')[0..-2].join('-') 
       replica_set = pod.split('-')[0..-2].join('-')
       tag = "kubernetes.#{namespace}.#{replica_set}.#{container_name}.#{pod}"
 
