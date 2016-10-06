@@ -6,6 +6,7 @@ USER root
 
 RUN apk --no-cache --update add sudo build-base ruby-dev libffi-dev && \
     sudo -u fluent gem install fluent-plugin-record-reformer && \
+    sudo -u fluent gem install fluent-plugin-kubernetes_metadata_filter && \
     rm -rf /home/fluent/.gem/ruby/2.3.0/cache/*.gem && sudo -u fluent gem sources -c && \
     apk del sudo build-base ruby-dev && rm -rf /var/cache/apk/*
 
