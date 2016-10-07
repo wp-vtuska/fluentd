@@ -3,8 +3,8 @@ require 'net/https'
 require 'yajl'
 
 class SumologicConnection
-  def initialize(endpoint, collector_id)
-    @endpoint_uri = URI.join(endpoint.strip, collector_id.strip)
+  def initialize(endpoint)
+    @endpoint_uri = URI.parse(endpoint.strip)
   end
 
   def publish(raw_data, sumo_name, sumo_category)
@@ -30,18 +30,17 @@ class SumologicConnection
   end
 end
 
-class Sumologic < Fluent::Output
+class Sumologic < Fluent::BufferedOutput
   # First, register the plugin. NAME is the name of this plugin
   # and identifies the plugin in the configuration file.
   Fluent::Plugin.register_output('sumologic', self)
 
   config_param :endpoint, :string
-  config_param :collector_id, :string
   config_param :log_format, :string, :default => 'json'
 
   # This method is called before starting.
   def configure(conf)
-    @sumo_conn = SumologicConnection.new(conf['endpoint'], conf['collector_id'])
+    @sumo_conn = SumologicConnection.new(conf['endpoint'])
     super
   end
 
@@ -54,48 +53,72 @@ class Sumologic < Fluent::Output
   def shutdown
     super
   end
+  
+  def sumo_metadata(kube_metadata)
+    sumo_name = nil
+    sumo_category = nil
+    
+    unless kube_metadata.nil?
+      annotations = kube_metadata.fetch('annotations', {})
+      namespace_name = kube_metadata['namespace_name']
+      pod_name = kube_metadata['pod_name']
+      container_name = kube_metadata['container_name']
+      sumo_name = annotations.fetch('sumologic.com/source', "#{namespace_name}.#{pod_name}.#{container_name}")
+      sumo_category = annotations.fetch('sumologic.com/category', "#{namespace_name}/#{pod_name}/#{container_name}")
+      sumo_category.sub('-', '/')
+    end
+    
+    return sumo_name, sumo_category
+  end
 
-  def emit(tag, es, chain)
-    chain.next
-    es.each do |time, record|
-      sumo_name = nil
-      sumo_category = nil
-      
-      if record.key?(:kubernetes)
-        annotations = record['kubernetes'].fetch('annotations', {})
+  def format(tag, time, record)
+    [tag, time, record].to_msgpack
+  end
 
-        namespace_name = record['kubernetes']['namespace_name']
-        pod_name = record['kubernetes']['pod_name']
-        container_name = record['kubernetes']['container_name']
-        
-        sumo_name = annotations.fetch('sumologic.com/source', "#{namespace_name}.#{pod_name}.#{container_name}")
-        sumo_category = annotations.fetch('sumologic.com/category', "#{namespace_name}/#{pod_name}/#{container_name}")
-        sumo_category.sub('-', '/')
+  # This method is called every flush interval. Write the buffer chunk
+  def write(chunk)
+
+    messages_list = {}
+
+    chunk.msgpack_each do |tag, time, record|
+      log = record['log'].strip! || record['log'] if record['log']
+
+      # Skip invalid records
+      if log.nil?
+        next
       end
+      
+      sumo_name, sumo_category = sumo_metadata(record['kubernetes'])
+      key = "#{sumo_name}:#{sumo_category}"
       
       case @log_format
         when 'json'
-          data = Yajl.dump({
+          log = Yajl.dump({
             'tag' => tag,
             'time' => time
           }.merge(record))
         when 'text'
           # Replace JSON encoded string
-          data = record['log'].strip!
-          unless data.nil?
-            data = data.gsub(/[\\]" | ["]/x, '\"' => '"', '"' => '')
-          end
+          log = log
       end
-      unless data.nil?
-        begin
-          @sumo_conn.publish(data, sumo_name, sumo_category)
-        rescue StandardError => e
-          $stderr.puts('Failed to write to Sumo!')
-          $stderr.puts(e)
-          $stderr.puts(data)
-        end
+    
+      if messages_list.key?(key)
+        messages_list[key].push(log)
+      else
+        messages_list[key] = [log]
       end
     end
-  
+
+    # Push data so sumo
+    messages_list.each do |key, messages|
+      begin
+        sumo_name, sumo_category = key.split(':')
+        @sumo_conn.publish(messages.join("\n"), sumo_name, sumo_category)
+      rescue StandardError => e
+        $stderr.puts('Failed to write to Sumo!')
+        $stderr.puts(e)
+      end
+    end
+
   end
 end
