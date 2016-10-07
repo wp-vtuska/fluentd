@@ -41,7 +41,7 @@ class Sumologic < Fluent::Output
 
   # This method is called before starting.
   def configure(conf)
-    @sumo_conn = SumologicConnection.new conf['endpoint'], conf['collector_id']
+    @sumo_conn = SumologicConnection.new(conf['endpoint'], conf['collector_id'])
     super
   end
 
@@ -90,9 +90,9 @@ class Sumologic < Fluent::Output
         begin
           @sumo_conn.publish data, sumo_name, sumo_category
         rescue StandardError => e
-          $stderr.puts "Failed to write to Sumo!"
-          $stderr.puts e
-          $stderr.puts data
+          $stderr.puts('Failed to write to Sumo!')
+          $stderr.puts(e)
+          $stderr.puts(data)
         end
       end
     end
