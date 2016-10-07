@@ -96,16 +96,13 @@ class Sumologic < Fluent::BufferedOutput
       key = "#{sumo_name}:#{sumo_category}"
 
       if log_format == 'json'
-        log = Yajl.dump({
-                          'tag' => tag,
-                          'time' => time
-                        }.merge(record))
+        log = Yajl.dump({'tag' => tag, 'time' => time}.merge(record))
+      end
 
-        if messages_list.key?(key)
-          messages_list[key].push(log)
-        else
-          messages_list[key] = [log]
-        end
+      if messages_list.key?(key)
+        messages_list[key].push(log)
+      else
+        messages_list[key] = [log]
       end
 
       # Push data so sumo
