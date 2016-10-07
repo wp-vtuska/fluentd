@@ -18,7 +18,8 @@ RUN mkdir -p /fluentd/conf.d && \
 
 # Default settings
 ENV SUMO_LOG_FORMAT "json"
-ENV SUMO_FLUSH_INTERVAL "5s"
+ENV SUMO_FLUSH_INTERVAL "30s"
+ENV SUMO_NUM_THREADS "5"
 
 COPY ./conf.d/* /fluentd/conf.d/
 COPY ./etc/* /fluentd/etc/
