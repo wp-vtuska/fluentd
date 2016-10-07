@@ -5,7 +5,7 @@ ENV PATH /home/fluent/.gem/ruby/2.3.0/bin:$PATH
 USER root
 
 RUN apk --no-cache --update add sudo build-base ruby-dev libffi-dev && \
-    sudo -u fluent gem install fluent-plugin-record-reformer && \
+    sudo -u fluent gem install fluent-plugin-record-reformer fluent-plugin-kubernetes_metadata_filter && \
     rm -rf /home/fluent/.gem/ruby/2.3.0/cache/*.gem && sudo -u fluent gem sources -c && \
     apk del sudo build-base ruby-dev && rm -rf /var/cache/apk/*
 
@@ -15,6 +15,9 @@ EXPOSE 24284
 RUN mkdir -p /fluentd/conf.d && \
     mkdir -p /fluentd/etc && \
     mkdir -p /fluentd/plugins
+
+# Default settings
+ENV SUMO_LOG_FORMAT "json"
 
 COPY ./conf.d/* /fluentd/conf.d/
 COPY ./etc/* /fluentd/etc/

@@ -7,14 +7,16 @@ class SumologicConnection
     @endpoint_uri = URI.join(endpoint.strip, collector_id.strip)
   end
 
-  def publish(raw_data)
-    http.request(request_for(raw_data))
+  def publish(raw_data, sumo_name, sumo_category)
+    http.request(request_for(raw_data, sumo_name, sumo_category))
   end
 
   private
-  def request_for(raw_data)
+  def request_for(raw_data, sumo_name, sumo_category)
     request = Net::HTTP::Post.new(@endpoint_uri.request_uri)
-    request.body = Yajl.dump(raw_data)
+    request.body = raw_data
+    request['X-Sumo-Name'] = sumo_name
+    request['X-Sumo-Category'] = sumo_category
     request['Content-Type'] = 'application/json'
     request
   end
@@ -35,6 +37,7 @@ class Sumologic < Fluent::Output
 
   config_param :endpoint, :string
   config_param :collector_id, :string
+  config_param :log_format, :string, :default => 'json'
 
   # This method is called before starting.
   def configure(conf)
@@ -52,27 +55,47 @@ class Sumologic < Fluent::Output
     super
   end
 
-  # This method is called when an event reaches Fluentd.
-  # 'es' is a Fluent::EventStream object that includes multiple events.
-  # You can use 'es.each {|time,record| ... }' to retrieve events.
-  # 'chain' is an object that manages transactions. Call 'chain.next' at
-  # appropriate points and rollback if it raises an exception.
-  #
-  # NOTE! This method is called by Fluentd's main thread so you should not write slow routine here. It causes Fluentd's performance degression.
   def emit(tag, es, chain)
     chain.next
     es.each do |time, record|
-      data = {
-        'tag' => tag,
-        'time' => time
-      }.merge(record)
-      begin
-        @sumo_conn.publish data
-      rescue StandardError => e
-        $stderr.puts "Failed to write to Sumo!"
-        $stderr.puts e
-        $stderr.puts data
+      sumo_name = nil
+      sumo_category = nil
+      
+      if record.key?(:kubernetes)
+        annotations = record['kubernetes'].fetch('annotations', {})
+
+        namespace_name = record['kubernetes']['namespace_name']
+        pod_name = record['kubernetes']['pod_name']
+        container_name = record['kubernetes']['container_name']
+        
+        sumo_name = annotations.fetch('sumologic.com/source', "#{namespace_name}.#{pod_name}.#{container_name}")
+        sumo_category = annotations.fetch('sumologic.com/category', "#{namespace_name}/#{pod_name}/#{container_name}")
+        sumo_category.sub('-', '/')
+      end
+      
+      case @log_format
+        when 'json'
+          data = Yajl.dump({
+            'tag' => tag,
+            'time' => time
+          }.merge(record))
+        when 'text'
+          # Replace JSON encoded string
+          data = record['log'].strip!
+          unless data.nil?
+            data = data.gsub(/[\\]" | ["]/x, '\"' => '"', '"' => '')
+          end
+      end
+      unless data.nil?
+        begin
+          @sumo_conn.publish data, sumo_name, sumo_category
+        rescue StandardError => e
+          $stderr.puts "Failed to write to Sumo!"
+          $stderr.puts e
+          $stderr.puts data
+        end
       end
     end
+  
   end
 end
