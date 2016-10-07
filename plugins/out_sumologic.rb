@@ -88,7 +88,7 @@ class Sumologic < Fluent::Output
       end
       unless data.nil?
         begin
-          @sumo_conn.publish data, sumo_name, sumo_category
+          @sumo_conn.publish(data, sumo_name, sumo_category)
         rescue StandardError => e
           $stderr.puts('Failed to write to Sumo!')
           $stderr.puts(e)
