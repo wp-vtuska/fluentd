@@ -25,6 +25,9 @@ And finally, you need to deploy the container.  I will presume you have your own
 The following options environment settings are available on the daemonset container
 
 * `SUMO_LOG_FORMAT` - Format to post logs into Sumo. `json` or `text` (default `json`)
+  * text - Only send the text from `log`
+  * json - Send the log in json format
+  * merge_json_log - Send the log in json format but merge the keys from `log` at the root level and delete `log` (Useful if your app logs in json format)
 * `SUMO_FLUSH_INTERVAL` - How frequently to push logs to SumoLogic (default `5s`)
 * `SUMO_NUM_THREADS` - Increase number of threads in heavy logging clusters (default `1`)
 * `SUMO_SOURCE_NAME` - Set the `_sourceName` metadata field in SumoLogic. (Default `"%{namespace}.%{pod}.%{container}"`)
