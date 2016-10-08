@@ -38,10 +38,7 @@ class Sumologic < Fluent::BufferedOutput
 
   config_param :endpoint, :string
   config_param :log_format, :string, :default => 'json'
-  config_param :source_category, :string, :default => '%{namespace}/%{pod_name}'
-  config_param :source_category_replace_dash, :string, :default => '/'
-  config_param :source_category_prefix, :string, :default => 'kubernetes/'
-  config_param :source_name, :string, :default => '%{namespace}.%{pod}.%{container}'
+  config_param :merge_json_log, :bool, default: true
 
   # This method is called before starting.
   def configure(conf)
@@ -58,71 +55,69 @@ class Sumologic < Fluent::BufferedOutput
   def shutdown
     super
   end
-
-  def is_number?(string)
-    true if Float(string) rescue false
+  
+  def merge_json_log(record)
+    if record.has_key?('log')
+      log = record['log'].strip
+      if log[0].eql?('{') && log[-1].eql?('}')
+        begin
+          record = JSON.parse(log).merge(record)
+          record.delete('log')
+        rescue JSON::ParserError
+        end
+      end
+    end
+    record
   end
 
-  def sumo_metadata(kube_metadata)
-    metadata = {
-      :namespace => kube_metadata['namespace_name'],
-      :pod => kube_metadata['pod_name'],
-      :container => kube_metadata['container_name'],
-      :source_host => kube_metadata['host'],
-    }
-
-    # Strip out dynamic bits from pod name. Deployments append a template hash.
-    pod_parts = metadata[:pod].split('-')
-    if is_number?(pod_parts[-2])
-      metadata[:pod_name] = pod_parts[0..-3].join('-')
-    else
-      metadata[:pod_name] = pod_parts[0..-2].join('-')
+  # Strip annotations and sumo
+  def dump_log(log)
+    if log['kubernetes'] and log['kubernetes']['annotations']
+      log['kubernetes'] = Yajl.load(Yajl.dump(log['kubernetes']))
+      log['kubernetes'].delete('annotations')
     end
-
-    annotations = kube_metadata.fetch('annotations', {})
-
-    source_host = metadata[:source_host]
-    log_format = annotations['sumologic.com/format'] || @log_format
-    source_name = (annotations['sumologic.com/sourceName'] || @source_name) % metadata
-    source_category = ((annotations['sumologic.com/sourceCategory'] || @source_category) % metadata).prepend(@source_category_prefix)
-    source_category.gsub!('-', @source_category_replace_dash)
-    
-    return source_name, source_category, source_host, log_format
+    log.delete('sumo')
+    Yajl.dump(log)
   end
 
   def format(tag, time, record)
     [tag, time, record].to_msgpack
   end
 
+  def sumo_key(sumo)
+    source_name = sumo['name']
+    source_category = sumo['category']
+    source_host = sumo['host']
+    "#{source_name}:#{source_category}:#{source_host}"
+  end
+
   # This method is called every flush interval. Write the buffer chunk
   def write(chunk)
     messages_list = {}
 
-    # Sort messages by metadata
+    # Sort messages
     chunk.msgpack_each do |tag, time, record|
-      log = record['log'].strip! || record['log'] if record['log']
-      # Skip invalid records
-      if log.nil?
-        next
+      sumo = record.fetch('sumo', {})
+      key = sumo_key(sumo)
+      log_format = sumo['log_format'] || @log_format
+      
+      case log_format
+        when 'text'
+          log = record['log']
+        when 'merge_json_log'
+          log = dump_log(merge_json_log({:time => time}.merge(record)))
+        else
+          log = dump_log({:time => time}.merge(record))
       end
 
-      kubernetes_metadata = record.fetch('kubernetes')
-
-      source_name, source_category, source_host, log_format = sumo_metadata(kubernetes_metadata)
-      key = "#{source_name}:#{source_category}:#{source_host}"
-
-      if log_format == 'json'
-        # Strip annotations
-        kubernetes_metadata.delete('annotations') if kubernetes_metadata['annotations']
-        
-        log = Yajl.dump({:time => time}.merge(record))
+      unless log.nil?
+        if messages_list.key?(key)
+          messages_list[key].push(log)
+        else
+          messages_list[key] = [log]
+        end
       end
-
-      if messages_list.key?(key)
-        messages_list[key].push(log)
-      else
-        messages_list[key] = [log]
-      end
+      
     end
 
     # Push logs to sumo
