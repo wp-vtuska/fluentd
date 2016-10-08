@@ -40,6 +40,7 @@ class Sumologic < Fluent::BufferedOutput
   config_param :log_format, :string, :default => 'json'
   config_param :source_category, :string, :default => '%{namespace}/%{pod_name}'
   config_param :source_category_replace_dash, :string, :default => '/'
+  config_param :source_category_prefix, :string, :default => 'kubernetes/'
   config_param :source_name, :string, :default => '%{namespace}.%{pod}.%{container}'
 
   # This method is called before starting.
@@ -83,9 +84,9 @@ class Sumologic < Fluent::BufferedOutput
     source_host = metadata[:source_host]
     log_format = annotations['sumologic.com/format'] || @log_format
     source_name = (annotations['sumologic.com/sourceName'] || @source_name) % metadata
-    source_category = (annotations['sumologic.com/sourceCategory'] || @source_category) % metadata
+    source_category = ((annotations['sumologic.com/sourceCategory'] || @source_category) % metadata).prepend(@source_category_prefix)
     source_category.gsub!('-', @source_category_replace_dash)
-
+    
     return source_name, source_category, source_host, log_format
   end
 
@@ -109,7 +110,7 @@ class Sumologic < Fluent::BufferedOutput
       key = "#{source_name}:#{source_category}:#{source_host}"
 
       if log_format == 'json'
-        log = Yajl.dump({'tag' => tag, 'time' => time}.merge(record))
+        log = Yajl.dump({:time => time}.merge(record))
       end
 
       if messages_list.key?(key)
