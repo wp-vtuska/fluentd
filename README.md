@@ -1,5 +1,5 @@
 # fluentd
-This is a [fluentd](http://www.fluentd.org/) container, designed to be run on a kubernetes [DaemonSet](http://kubernetes.io/docs/admin/daemons/).  This means we will run an instance of this container on each physical underlying host.  The goal is to pull all the kubelet, docker daemon and container logs from the host then to ship them off to [SumoLogic](https://www.sumologic.com/) in json format.
+This is a [fluentd](http://www.fluentd.org/) container, designed to run as a kubernetes [DaemonSet](http://kubernetes.io/docs/admin/daemons/). This means it will run an instance of this container on each physical underlying host in the cluster. The goal is to pull all the kubelet, docker daemon and container logs from the host then to ship them off to [SumoLogic](https://www.sumologic.com/) in json or text format.
 
 ## Setup
 ### SumoLogic
@@ -7,24 +7,60 @@ First things first, you need a HTTP collector in SumoLogic that the container ca
 
 In Sumo, `Manage -> Collection -> Add Collector -> Hosted Collector`
 
-Then you need to add a source to that collector, which would be a new `HTTP source`. This will give you a unique URL that you can use to send logs to.
+Then you need to add a source to that collector, which would be a new `HTTP source`. This will give you a unique URL that can receive logs.
 
-We're interested in the last bit:
-
-For Example: https://endpoint1.collection.us2.sumologic.com/receiver/v1/http/**somelongbase64hashthingthatgetsgenerated**
+More details here: http://help.sumologic.com/Send_Data/Sources/HTTP_Source
 
 ### Kubernetes
-We need to then save that secret, as a secret, into kubernetes.
+We need to then save that url as a secret in kubernetes.
 
 ```
-echo -n "somelongbase64hashthingthatgetsgenerated" > collector-id
-kubectl create secret generic sumologic-credentials --from-file=collector-id
+kubectl create secret generic sumologic-endpoint --from-literal=sumo_endpoint=<INSERT_SUMO_HTTP_URL>
 ```
 
 And finally, you need to deploy the container.  I will presume you have your own CI/CD setup, and you can use the kubernetes example in [kubernetes/fluentd.daemon.yml](kubernetes/fluentd.daemon.yml)
 
+## Options
+
+The following options environment settings are available on the daemonset container
+
+* `SUMO_LOG_FORMAT` - Format to post logs into Sumo. `json` or `text` (default `json`)
+* `SUMO_FLUSH_INTERVAL` - How frequently to push logs to SumoLogic (default `5s`)
+* `SUMO_NUM_THREADS` - Increase number of threads in heavy logging clusters (default `1`)
+* `SUMO_SOURCE_NAME` - Set the `_sourceName` metadata field in SumoLogic. (Default `"%{namespace}.%{pod}.%{container}"`)
+* `SUMO_SOURCE_CATEGORY` - Can be used to pass the access ID instead of passing it in as a commandline argument.
+* `SUMO_SOURCE_CATEGORY_REPLACE_DASH` - Can be used to pass the access ID instead of passing it in as a commandline argument.
+
+The `SUMO_LOG_FORMAT`, `SUMO_SOURCE_CATEGORY` and `SUMO_SOURCE_NAME` can be overridden per pod using [annotations](http://kubernetes.io/v1.0/docs/user-guide/annotations.html). For example
+
+```
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    app: mywebsite
+  template:
+    metadata:
+      name: nginx
+      labels:
+        app: mywebsite
+      annotations:
+        sumologic.com/format: "text"
+        sumologic.com/sourceCategory: "mywebsite/nginx"
+        sumologic.com/sourceName: "mywebsite_nginx"
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+```
+
 ## Logs, Yay
-Simple as that really, your logs should be getting streamed to SumoLogic in JSON format.  Use the `json` parser to extract the fields, for example `_collector=gcp-test-collector | json auto`
+Simple as that really, your logs should be getting streamed to SumoLogic in json or text format with the approipate metadata. If using `json` format you can auto extract fields, for example `_sourceCategory=some/app | json auto`
 
 ### Docker
 ![Docker Logs](/screenshots/docker.png)
