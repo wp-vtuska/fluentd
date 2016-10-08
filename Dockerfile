@@ -20,6 +20,9 @@ RUN mkdir -p /fluentd/conf.d && \
 ENV SUMO_LOG_FORMAT "json"
 ENV SUMO_FLUSH_INTERVAL "30s"
 ENV SUMO_NUM_THREADS "1"
+ENV SUMO_SOURCE_CATEGORY "%{namespace}/%{pod_name}"
+ENV SUMO_SOURCE_CATEGORY_REPLACE_DASH "/"
+ENV SUMO_SOURCE_NAME "%{namespace}.%{pod}.%{container}"
 
 COPY ./conf.d/* /fluentd/conf.d/
 COPY ./etc/* /fluentd/etc/

@@ -38,6 +38,9 @@ class Sumologic < Fluent::BufferedOutput
 
   config_param :endpoint, :string
   config_param :log_format, :string, :default => 'json'
+  config_param :source_category, :string, :default => '%{namespace}/%{pod_name}'
+  config_param :source_category_replace_dash, :string, :default => '/'
+  config_param :source_name, :string, :default => '%{namespace}.%{pod}.%{container}'
 
   # This method is called before starting.
   def configure(conf)
@@ -55,27 +58,33 @@ class Sumologic < Fluent::BufferedOutput
     super
   end
 
+  def is_number?(string)
+    true if Float(string) rescue false
+  end
+
   def sumo_metadata(kube_metadata)
-    source_name = nil
-    source_category = nil
-    source_host = nil
-    log_format = nil
+    metadata = {
+      :namespace => kube_metadata['namespace_name'],
+      :pod => kube_metadata['pod_name'],
+      :container => kube_metadata['container_name'],
+      :source_host => kube_metadata['host'],
+    }
 
-    unless kube_metadata.nil?
-      namespace = kube_metadata['namespace_name']
-      pod = kube_metadata['pod_name']
-      container = kube_metadata['container_name']
-      source_host = kube_metadata['host']
-
-      annotations = kube_metadata.fetch('annotations', {})
-      source_name = annotations.fetch('sumologic.com/sourceName', "#{namespace}.#{pod}.#{container}")
-      source_category = annotations.fetch('sumologic.com/sourceCategory', "#{namespace}/#{pod}/#{container}")
-
-      log_format = annotations['sumologic.com/format']
-      if log_format.nil?
-        log_format = @log_format
-      end
+    # Strip out dynamic bits from pod name. Deployments append a template hash.
+    pod_parts = metadata[:pod].split('-')
+    if is_number?(pod_parts[-2])
+      metadata[:pod_name] = pod_parts[0..-3].join('-')
+    else
+      metadata[:pod_name] = pod_parts[0..-2].join('-')
     end
+
+    annotations = kube_metadata.fetch('annotations', {})
+
+    source_host = metadata[:source_host]
+    log_format = annotations['sumologic.com/format'] || @log_format
+    source_name = (annotations['sumologic.com/sourceName'] || @source_name) % metadata
+    source_category = (annotations['sumologic.com/sourceCategory'] || @source_category) % metadata
+    source_category.gsub!('-', @source_category_replace_dash)
 
     return source_name, source_category, source_host, log_format
   end
@@ -111,20 +120,14 @@ class Sumologic < Fluent::BufferedOutput
     end
 
     # Push logs to sumo
-    length = messages_list.length
     messages_list.each do |key, messages|
-      begin
-        source_name, source_category, source_host = key.split(':') 
-        @sumo_conn.publish(
-          messages.join("\n"),
-          source_host=source_host,
-          source_category=source_category,
-          source_name=source_name
-        )
-      rescue StandardError => e
-        $stderr.puts('Failed to write to Sumo!')
-        $stderr.puts(e)
-      end
+      source_name, source_category, source_host = key.split(':')
+      @sumo_conn.publish(
+        messages.join("\n"),
+        source_host=source_host,
+        source_category=source_category,
+        source_name=source_name
+      )
     end
 
   end
