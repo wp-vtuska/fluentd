@@ -1,7 +1,7 @@
 require 'fluent/filter'
 
 module Fluent
-  class ContainerOutput < Filter
+  class SumoContainerFilter < Filter
     # Register type
     Fluent::Plugin.register_filter('kubernetes_sumo', self)
 
