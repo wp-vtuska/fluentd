@@ -85,7 +85,7 @@ class Sumologic < Fluent::BufferedOutput
   end
 
   def sumo_key(sumo)
-    source_name = sumo['name']
+    source_name = sumo['source']
     source_category = sumo['category']
     source_host = sumo['host']
     "#{source_name}:#{source_category}:#{source_host}"
