@@ -104,6 +104,9 @@ class Sumologic < Fluent::BufferedOutput
       case log_format
         when 'text'
           log = record['log']
+          unless log.nil?
+            log.strip!
+          end
         when 'merge_json_log'
           log = dump_log(merge_json_log({:time => time}.merge(record)))
         else
