@@ -106,10 +106,15 @@ class Sumologic < Fluent::BufferedOutput
         next
       end
 
-      source_name, source_category, source_host, log_format = sumo_metadata(record['kubernetes'])
+      kubernetes_metadata = record.fetch('kubernetes')
+
+      source_name, source_category, source_host, log_format = sumo_metadata(kubernetes_metadata)
       key = "#{source_name}:#{source_category}:#{source_host}"
 
       if log_format == 'json'
+        # Strip annotations
+        kubernetes_metadata.delete('annotations') if kubernetes_metadata['annotations']
+        
         log = Yajl.dump({:time => time}.merge(record))
       end
 
