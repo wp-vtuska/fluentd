@@ -1,22 +1,24 @@
 require 'fluent/output'
 require 'net/https'
 require 'yajl'
+require 'benchmark'
 
 class SumologicConnection
   def initialize(endpoint)
     @endpoint_uri = URI.parse(endpoint.strip)
   end
 
-  def publish(raw_data, sumo_name, sumo_category)
-    http.request(request_for(raw_data, sumo_name, sumo_category))
+  def publish(raw_data, source_host=nil, source_category=nil, source_name=nil)
+    http.request(request_for(raw_data, source_host, source_category, source_name))
   end
 
   private
-  def request_for(raw_data, sumo_name, sumo_category)
+  def request_for(raw_data, source_host, source_category, source_name)
     request = Net::HTTP::Post.new(@endpoint_uri.request_uri)
     request.body = raw_data
-    request['X-Sumo-Name'] = sumo_name
-    request['X-Sumo-Category'] = sumo_category
+    request['X-Sumo-Name'] = source_name
+    request['X-Sumo-Category'] = source_category
+    request['X-Sumo-Host'] = source_host
     request
   end
 
@@ -54,19 +56,20 @@ class Sumologic < Fluent::BufferedOutput
   end
 
   def sumo_metadata(kube_metadata)
-    sumo_name = nil
-    sumo_category = nil
+    source_name = nil
+    source_category = nil
+    source_host = nil
     log_format = nil
 
     unless kube_metadata.nil?
-      namespace_name = kube_metadata['namespace_name']
-      pod_name = kube_metadata['pod_name']
-      container_name = kube_metadata['container_name']
+      namespace = kube_metadata['namespace_name']
+      pod = kube_metadata['pod_name']
+      container = kube_metadata['container_name']
+      source_host = kube_metadata['host']
 
       annotations = kube_metadata.fetch('annotations', {})
-      sumo_name = annotations.fetch('sumologic.com/sourceName', "#{namespace_name}.#{pod_name}.#{container_name}")
-      sumo_category = annotations.fetch('sumologic.com/sourceCategory', "#{namespace_name}/#{pod_name}/#{container_name}")
-      sumo_category.sub('-', '/')
+      source_name = annotations.fetch('sumologic.com/sourceName', "#{namespace}.#{pod}.#{container}")
+      source_category = annotations.fetch('sumologic.com/sourceCategory', "#{namespace}/#{pod}/#{container}")
 
       log_format = annotations['sumologic.com/format']
       if log_format.nil?
@@ -74,7 +77,7 @@ class Sumologic < Fluent::BufferedOutput
       end
     end
 
-    return sumo_name, sumo_category, log_format
+    return source_name, source_category, source_host, log_format
   end
 
   def format(tag, time, record)
@@ -85,6 +88,7 @@ class Sumologic < Fluent::BufferedOutput
   def write(chunk)
     messages_list = {}
 
+    # Sort messages by metadata
     chunk.msgpack_each do |tag, time, record|
       log = record['log'].strip! || record['log'] if record['log']
       # Skip invalid records
@@ -92,8 +96,8 @@ class Sumologic < Fluent::BufferedOutput
         next
       end
 
-      sumo_name, sumo_category, log_format = sumo_metadata(record['kubernetes'])
-      key = "#{sumo_name}:#{sumo_category}"
+      source_name, source_category, source_host, log_format = sumo_metadata(record['kubernetes'])
+      key = "#{source_name}:#{source_category}:#{source_host}"
 
       if log_format == 'json'
         log = Yajl.dump({'tag' => tag, 'time' => time}.merge(record))
@@ -104,19 +108,25 @@ class Sumologic < Fluent::BufferedOutput
       else
         messages_list[key] = [log]
       end
-
-      # Push data so sumo
-      messages_list.each do |key, messages|
-        begin
-          sumo_name, sumo_category = key.split(':')
-          @sumo_conn.publish(messages.join("\n"), sumo_name, sumo_category)
-        rescue StandardError => e
-          $stderr.puts('Failed to write to Sumo!')
-          $stderr.puts(e)
-        end
-      end
-      
     end
+
+    # Push logs to sumo
+    length = messages_list.length
+    messages_list.each do |key, messages|
+      begin
+        source_name, source_category, source_host = key.split(':') 
+        @sumo_conn.publish(
+          messages.join("\n"),
+          source_host=source_host,
+          source_category=source_category,
+          source_name=source_name
+        )
+      rescue StandardError => e
+        $stderr.puts('Failed to write to Sumo!')
+        $stderr.puts(e)
+      end
+    end
+
   end
 end
-
+  
