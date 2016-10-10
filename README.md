@@ -65,7 +65,7 @@ spec:
 ```
 
 ## Logs, Yay
-Simple as that really, your logs should be getting streamed to SumoLogic in json or text format with the approipate metadata. If using `json` format you can auto extract fields, for example `_sourceCategory=some/app | json auto`
+Simple as that really, your logs should be getting streamed to SumoLogic in json or text format with the appropriate metadata. If using `json` format you can auto extract fields, for example `_sourceCategory=some/app | json auto`
 
 ### Docker
 ![Docker Logs](/screenshots/docker.png)
