@@ -17,13 +17,13 @@ RUN mkdir -p /fluentd/conf.d && \
     mkdir -p /fluentd/plugins
 
 # Default settings
-ENV SUMO_LOG_FORMAT "json"
-ENV SUMO_FLUSH_INTERVAL "30s"
-ENV SUMO_NUM_THREADS "1"
-ENV SUMO_SOURCE_CATEGORY "%{namespace}/%{pod_name}"
-ENV SUMO_SOURCE_CATEGORY_PREFIX "kubernetes/"
-ENV SUMO_SOURCE_CATEGORY_REPLACE_DASH "/"
-ENV SUMO_SOURCE_NAME "%{namespace}.%{pod}.%{container}"
+ENV LOG_FORMAT "json"
+ENV FLUSH_INTERVAL "30s"
+ENV NUM_THREADS "1"
+ENV SOURCE_CATEGORY "%{namespace}/%{pod_name}"
+ENV SOURCE_CATEGORY_PREFIX "kubernetes/"
+ENV SOURCE_CATEGORY_REPLACE_DASH "/"
+ENV SOURCE_NAME "%{namespace}.%{pod}.%{container}"
 
 COPY ./conf.d/* /fluentd/conf.d/
 COPY ./etc/* /fluentd/etc/

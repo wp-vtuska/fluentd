@@ -15,7 +15,7 @@ More details here: http://help.sumologic.com/Send_Data/Sources/HTTP_Source
 We need to then save that url as a secret in kubernetes.
 
 ```
-kubectl create secret generic sumologic-endpoint --from-literal=sumo_endpoint=<INSERT_SUMO_HTTP_URL>
+kubectl create secret generic sumologic-endpoint --from-literal=endpoint=<INSERT_HTTP_URL>
 ```
 
 And finally, you need to deploy the container.  I will presume you have your own CI/CD setup, and you can use the kubernetes example in [kubernetes/fluentd.daemon.yml](kubernetes/fluentd.daemon.yml)
@@ -24,17 +24,17 @@ And finally, you need to deploy the container.  I will presume you have your own
 
 The following options environment settings are available on the daemonset container
 
-* `SUMO_LOG_FORMAT` - Format to post logs into Sumo. `json` or `text` (default `json`)
-  * text - Only send the text from `log`
-  * json - Send the log in json format
+* `LOG_FORMAT` - Format to post logs into Sumo. `json` or `text` (default `json`)
+  * text - logs will appear in SumoLogic in text format
+  * json - Logs will appear in SumoLogic in json format IE
   * merge_json_log - Send the log in json format but merge the keys from `log` at the root level and delete `log` (Useful if your app logs in json format)
-* `SUMO_FLUSH_INTERVAL` - How frequently to push logs to SumoLogic (default `5s`)
-* `SUMO_NUM_THREADS` - Increase number of threads in heavy logging clusters (default `1`)
-* `SUMO_SOURCE_NAME` - Set the `_sourceName` metadata field in SumoLogic. (Default `"%{namespace}.%{pod}.%{container}"`)
-* `SUMO_SOURCE_CATEGORY` - Can be used to pass the access ID instead of passing it in as a commandline argument.
-* `SUMO_SOURCE_CATEGORY_REPLACE_DASH` - Can be used to pass the access ID instead of passing it in as a commandline argument.
+* `FLUSH_INTERVAL` - How frequently to push logs to SumoLogic (default `5s`)
+* `NUM_THREADS` - Increase number of threads in heavy logging clusters (default `1`)
+* `SOURCE_NAME` - Set the `_sourceName` metadata field in SumoLogic. (Default `"%{namespace}.%{pod}.%{container}"`)
+* `SOURCE_CATEGORY` - Can be used to pass the access ID instead of passing it in as a commandline argument.
+* `SOURCE_CATEGORY_REPLACE_DASH` - Can be used to pass the access ID instead of passing it in as a commandline argument.
 
-The `SUMO_LOG_FORMAT`, `SUMO_SOURCE_CATEGORY` and `SUMO_SOURCE_NAME` can be overridden per pod using [annotations](http://kubernetes.io/v1.0/docs/user-guide/annotations.html). For example
+The `LOG_FORMAT`, `SOURCE_CATEGORY` and `SOURCE_NAME` can be overridden per pod using [annotations](http://kubernetes.io/v1.0/docs/user-guide/annotations.html). For example
 
 ```
 apiVersion: v1
