@@ -42,6 +42,14 @@ class Sumologic < Fluent::BufferedOutput
 
   # This method is called before starting.
   def configure(conf)
+    unless conf['endpoint'] =~ URI::regexp
+      raise Fluent::ConfigError, "Invalid SumoLogic endpoint url: #{conf['endpoint']}"
+    end
+    
+    unless conf['log_format'] =~ /\A(?:json|text|merge_json_log)\z/
+      raise Fluent::ConfigError, "Invalid log_format #{conf['log_format']} must be text, json or merge_json_log"
+    end
+    
     @sumo_conn = SumologicConnection.new(conf['endpoint'])
     super
   end
