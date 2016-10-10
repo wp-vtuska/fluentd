@@ -5,6 +5,7 @@ module Fluent
     # Register type
     Fluent::Plugin.register_filter('kubernetes_sumo', self)
 
+    config_param :kubernetes_meta, :bool, :default => true
     config_param :source_category, :string, :default => '%{namespace}/%{pod_name}'
     config_param :source_category_replace_dash, :string, :default => '/'
     config_param :source_category_prefix, :string, :default => 'kubernetes/'
@@ -19,6 +20,8 @@ module Fluent
     end
 
     def filter(tag, time, record)
+      
+      record['log'].chomp! if record['log']
       
       unless record.fetch('kubernetes').nil?
         metadata = {
@@ -44,6 +47,12 @@ module Fluent
         sumo[:category] = ((annotations['sumologic.com/sourceCategory'] || @source_category) % metadata).prepend(@source_category_prefix)
         sumo[:category].gsub!('-', @source_category_replace_dash)
         sumo[:log_format] = annotations['sumologic.com/format']
+        
+        # Strip kubernetes metadata from json if disabled
+        if annotations['sumologic.com/kubernetes_meta'] == 'false' || !@kubernetes_meta
+          record.delete('docker')
+          record.delete('kubernetes')
+        end
 
       end
       
