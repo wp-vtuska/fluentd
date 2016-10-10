@@ -21,7 +21,7 @@ spec:
         hostPath:
           path: /var/lib/docker
       containers:
-      - image: eu.gcr.io/peopledata-product-team/fluentd:{{ENV.GO_PIPELINE_COUNTER}}
+      - image: eu.gcr.io/peopledata-product-team/fluentd:latest
         name: fluentd
         imagePullPolicy: Always
         volumeMounts:
@@ -34,8 +34,8 @@ spec:
         - name: pos-files 
           mountPath: /mnt/pos/ 
         env:
-        - name: SUMO_COLLECTOR_ID
+        - name: COLLECTOR_URL
           valueFrom:
             secretKeyRef:
-              name: sumologic-credentials
-              key: collector-id
+              name: sumologic
+              key: collector-url
