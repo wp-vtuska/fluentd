@@ -21,7 +21,7 @@ spec:
         hostPath:
           path: /var/lib/docker
       containers:
-      - image: eu.gcr.io/peopledata-product-team/fluentd:latest
+      - image: eu.gcr.io/peopledata-product-team/fluentd:{{ENV.GO_PIPELINE_COUNTER}}
         name: fluentd
         imagePullPolicy: Always
         volumeMounts:
