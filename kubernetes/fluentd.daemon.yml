@@ -21,7 +21,7 @@ spec:
         hostPath:
           path: /var/lib/docker
       containers:
-      - image: eu.gcr.io/peopledata-product-team/fluentd:latest
+      - image: peopledata/fluentd:latest 
         name: fluentd
         imagePullPolicy: Always
         volumeMounts:
