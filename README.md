@@ -15,7 +15,7 @@ More details here: http://help.sumologic.com/Send_Data/Sources/HTTP_Source
 Save the collector url (created above) as a secret in kubernetes.
 
 ```
-kubectl create secret generic sumologic-endpoint --from-literal=endpoint=<INSERT_HTTP_URL>
+kubectl create secret generic sumologic --from-literal=collector-url=<INSERT_HTTP_URL>
 ```
 
 And finally, you need to deploy the container. I will presume you have your own CI/CD setup, and you can use the kubernetes example in [kubernetes/fluentd.daemon.yml](kubernetes/fluentd.daemon.yml)
