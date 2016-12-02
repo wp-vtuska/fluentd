@@ -116,9 +116,9 @@ class Sumologic < Fluent::BufferedOutput
             log.strip!
           end
         when 'merge_json_log'
-          log = dump_log(merge_json_log({:time => time}.merge(record)))
+          log = dump_log(merge_json_log({:timestamp => (time*1000).to_s}.merge(record)))
         else
-          log = dump_log({:time => time}.merge(record))
+          log = dump_log({:timestamp => (time*1000).to_s}.merge(record))
       end
 
       unless log.nil?
