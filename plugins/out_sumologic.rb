@@ -45,11 +45,11 @@ class Sumologic < Fluent::BufferedOutput
     unless conf['endpoint'] =~ URI::regexp
       raise Fluent::ConfigError, "Invalid SumoLogic endpoint url: #{conf['endpoint']}"
     end
-    
+
     unless conf['log_format'] =~ /\A(?:json|text|merge_json_log)\z/
       raise Fluent::ConfigError, "Invalid log_format #{conf['log_format']} must be text, json or merge_json_log"
     end
-    
+
     @sumo_conn = SumologicConnection.new(conf['endpoint'])
     super
   end
@@ -63,7 +63,7 @@ class Sumologic < Fluent::BufferedOutput
   def shutdown
     super
   end
-  
+
   def merge_json_log(record)
     if record.has_key?('log')
       log = record['log'].strip
@@ -99,6 +99,11 @@ class Sumologic < Fluent::BufferedOutput
     "#{source_name}:#{source_category}:#{source_host}"
   end
 
+  # Convert timestamp to 13 digit epoch if necessary
+  def sumo_timestamp(time)
+      time.to_s.length == 13 ? time : time * 1000
+  end
+
   # This method is called every flush interval. Write the buffer chunk
   def write(chunk)
     messages_list = {}
@@ -108,7 +113,7 @@ class Sumologic < Fluent::BufferedOutput
       sumo = record.fetch('sumo', {})
       key = sumo_key(sumo)
       log_format = sumo['log_format'] || @log_format
-      
+
       case log_format
         when 'text'
           log = record['log']
@@ -116,9 +121,9 @@ class Sumologic < Fluent::BufferedOutput
             log.strip!
           end
         when 'merge_json_log'
-          log = dump_log(merge_json_log({:timestamp => (time*1000).to_s}.merge(record)))
+          log = dump_log(merge_json_log({:timestamp => sumo_timestamp(time)}.merge(record)))
         else
-          log = dump_log({:timestamp => (time*1000).to_s}.merge(record))
+          log = dump_log({:timestamp => sumo_timestamp(time)}.merge(record))
       end
 
       unless log.nil?
@@ -128,7 +133,7 @@ class Sumologic < Fluent::BufferedOutput
           messages_list[key] = [log]
         end
       end
-      
+
     end
 
     # Push logs to sumo
@@ -144,4 +149,3 @@ class Sumologic < Fluent::BufferedOutput
 
   end
 end
-  
